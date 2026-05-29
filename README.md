@@ -1,90 +1,56 @@
 # SQL School
 
-For the most part you'll interact with your database by executing SQL statements. SQL (Structured Query Language) isn't quite a language like Python is (it lacks typical features like variables, loops, branching, etc.) but it has its own syntax we'll need to learn.
+In this challenge you'll create a small school database from scratch: write the schema, load seed data, then make a series of modifications.  This exercises SQL's data-definition (`CREATE`, `ALTER`) and data-modification (`INSERT`, `UPDATE`) sides — different from the `SELECT`-heavy queries you've been doing all week.
 
-Each database has subtle differences in their implementation of SQL, but we can expect all database servers to support the following commands:
+Starter files: `create-schema.sql`, `seed-data.sql`.
 
-**SELECT**  
-Query one or more tables for rows that match specified criteria.
+## SQL refresher
 
-**INSERT**  
-Add new rows to existing tables.
+Every database server supports these core commands.  You'll touch all of them in this challenge.
 
-**UPDATE**  
-Change column values of any rows that match specified criteria.
+| Command | What it does |
+|---|---|
+| `SELECT` | Query one or more tables for rows matching criteria |
+| `INSERT` | Add new rows to a table |
+| `UPDATE` | Change column values on rows matching criteria |
+| `DELETE` | Remove rows matching criteria |
+| `CREATE` | Create new tables (or other database objects) |
+| `DROP` | Delete entire tables |
+| `ALTER` | Change a table's structure (add/remove columns, etc.) |
 
-**DELETE**  
-Delete rows that match specified criteria.
+## Common Postgres column types
 
-**CREATE**  
-Create new tables.
+| Description | Type |
+|---|---|
+| Integer numbers from -2³¹ to 2³¹ | `INTEGER` |
+| Fractional number | `DECIMAL` |
+| Variable-length string (1–255 chars) | `VARCHAR(n)` |
+| Fixed-length string | `CHARACTER(n)` |
+| Longer strings, up to 16 KB | `TEXT` |
+| Date, no time | `DATE` |
+| Date with time | `TIMESTAMP` |
 
-**DROP**  
-Delete entire tables from the database.
+## Requirements
 
+### 1. Create a database
 
-Other commands like those used to list the current database's tables or a tables schema are usually unique to the database you're using. We'll explore some of these commands as they're implemented in Postgres.
+Postgres supports multiple databases, so create a fresh one named `school`:
 
-Perhaps unsurprisingly, `SELECT` is by far the most common SQL command and also the one that has the most number of options.
-
-In the first half of this challenge, you'll be using the provided sql scripts to:
-
-1. Create a database
-2. Write SQL to create a schema (tables)
-3. Inspect your schema
-4. Insert new records from a provided set of seed data
-5. Verify seed records were inserted with the `SELECT` SQL command
-
-## Create a Database
-Postgres supports multiple databases. So when we interact with the server, we'll need to specify which database we want to connect to. Before that though, we need to create our database. Postgres comes with a command for this:
-
-```
-$ createdb database_name_goes_here
+```bash
+$ createdb school
 ```
 
-Create a database named `school`. Confirm it exists by connecting to it with the `psql` command and listing the tables with the `\d` command. You should see output like so:
+Connect with `psql` and list tables — should be empty:
 
-```
+```bash
 $ psql school
-psql (9.6.1, server 9.4.5)
-Type "help" for help.
-
 school=# \d
 No relations found.
 ```
 
-`No relations found.`. That's expected though, we don't have any tables yet.
+### 2. Write the schema
 
-
-## Create Your Schema
-
-Before we can insert data, we're going to need to define our schema. One important point we need to cover before we create our tables: primary keys. While it's not required for a table to have a primary key, it's extremely useful when linking records between tables. One example of this "linking" is the `address_id` column of the `students` table. Primary keys are guaranteed to be unique, which makes them perfect as identifiers when linking rows across tables.
-
-We'll be designing **all** of our tables with an incrementing integer as a primary key. Sometimes you might be tempted to use another column as a primary key (like a social security number for a person or ISBN number for a book), but it's always a better choice to have an independent "internal" primary identifier. It's also one less choice to make -- just always create an `id` column as primary key.
-
-Remember our table design from the prep reading? Convert each of these to a `CREATE TABLE` statement. The `students` table statement has already been written for you. Give thought to which column type you choose and whether or not a column can have a blank (NULL) value.
-
-Postgres supports a number of different column types. Here's a summary of the most common ones:
-
-
-description | column type
---- | --- |
-integer numbers from -2^31 to 2^31 | INTEGER |
-fractional number | DECIMAL |
-variable length strings from 1-255 characters | VARCHAR([1-255]) |
-fixed length string | CHARACTER(length) |
-longer strings, up to 16KB | TEXT |
-date, no time| DATE |
-date with time | TIMESTAMP |
-
-
-Add the missing `CREATE TABLE` statements to the included `create-schema.sql`. You can run this file of SQL commands on your local postgres sever like so:
-
-```
-$ psql school < create-schema.sql
-```
-
-> `psql` is a command line interface to connect to your Postgres server. The `<` is a shell redirect, passing along the contents of the file `create-schema.sql` to the `psql` program.
+Open `create-schema.sql`.  The `students` table is already written for you:
 
 ```sql
 DROP TABLE IF EXISTS students;
@@ -97,106 +63,78 @@ CREATE TABLE students (
 );
 ```
 
-Some notes:
+Add `CREATE TABLE` statements for these three tables.  Use the column-type table above to pick types, and decide which columns should be `NOT NULL`:
 
-* `serial` is a special column type provided by Postgres. It creates an integer column whose value is automatically set to the next number in sequence (starting at zero). This way each record has a unique `id` value that we don't need to set ourselves.
-* It's not necessary to specify `NOT NULL` for primary keys. They are `NOT NULL` by default.
-* I've allowed `address_id` to be `NULL` since we might not know the address of a student.
+**addresses** — `id`, `line_1`, `city`, `state`, `zipcode`
 
-Here are the other tables you need to write the `CREATE TABLE` statements for:
+**classes** — `id`, `name`, `credits`
 
-**addresses** |
---- |
-id |
-line_1 |
-city |
-state |
-zipcode |
+**enrollments** — `id`, `student_id`, `class_id`, `grade`
 
+Notes:
+- `serial` is a special Postgres type that gives you an auto-incrementing integer — use it for every `id` column.
+- Primary keys are `NOT NULL` by default; you don't need to spell it out.
+- Give thought to which other columns make sense as `NOT NULL`.
 
-**classes** |
---- |
-id |
-name |
-credits |
+Load and reload your schema as you go:
 
-**enrollments** |
---- |
-id |
-student_id |
-class_id |
-grade |
-
-
-Remember you can load your schema with the following command:
-
-```shell
+```bash
 $ psql school < create-schema.sql
 ```
 
-It's easy to make a typo as you write your SQL, so test loading your schema as you write it (load the schema often!).
+### 3. Inspect your schema
 
-## Test your schema
+After loading, connect with `psql school` and inspect each table with `\d`:
 
-Before we load some seed data, login to the postgres server with `psql` and inspect the tables you've created. Here's an example terminal session of inspecting the schema of the `students` table:
-
-```shell
-$ psql school
-psql (9.6.1, server 9.4.5)
-Type "help" for help.
-
-school=# \d students;
+```
+school=# \d students
                                    Table "public.students"
    Column   |          Type          |                       Modifiers
-------------+------------------------+-------------------------------------------------------
- id         | integer                | not null default nextval('students_id_seq'::regclass)
+------------+------------------------+------------------------------------------------
+ id         | integer                | not null default nextval('students_id_seq'...)
  first_name | character varying(255) | not null
- last_name  | character varying(255) | not null
- birthdate  | date                   | not null
- address_id | integer                |
-Indexes:
-    "students_pkey" PRIMARY KEY, btree (id)
-
-Use the postgres `\d` command to inspect all of your tables.
+ ...
 ```
 
-## Inserting Data
+### 4. Load the seed data
 
-If your schema looks correct, try running the included SQL file `seed-data.sql` using `psql`. This will seed your database with student, address, class & enrollment records. Running this script should produce output like this (without any errors):
-
-```shell
+```bash
 $ psql school < seed-data.sql
-INSERT 0 1
-INSERT 0 1
-INSERT 0 1
-...
 ```
 
-If you've chosen the wrong types for any of your columns or forgot a column, you'll probably see some errors when running the seeds. Address these issues by modifying & reloading your schema.
+You should see a stream of `INSERT 0 1` lines.  If you see errors, your schema probably doesn't match — fix the schema and rerun both files.
 
-If the seeds run successfully, connect to your database again and use the `SELECT` command to quickly inspect all the records in your database (one select per table). Here's an example:
+Verify with a `SELECT` on each table:
 
-```shell
-school=# SELECT * FROM students;
- id | first_name | last_name | birthdate  | address_id
-----+------------+-----------+------------+------------
-  1 | Tianna     | Lowe      | 1985-02-17 |          1
-  2 | Elda       | Sipes     | 1989-08-03 |          2
-  3 | Jed        | Kunde     | 1987-01-22 |          3
-  4 | Leopold    | Towne     | 1984-10-07 |
-  5 | Andre      | Rohan     | 1989-09-01 |          4
-(5 rows)
+```sql
+SELECT * FROM students;
+SELECT * FROM addresses;
+SELECT * FROM classes;
+SELECT * FROM enrollments;
 ```
 
-Run the same select command against all of your tables and make sure you see the same records listing in `seed-data.sql`.
+### 5. Make the following modifications
 
+Write each as a SQL script and run it.  You can put them all in a single `modifications.sql` or split them out — your call.
 
-In the second half of this challenge, you'll be writing your own sql scripts to:
+1. **Insert** an additional address into the `addresses` table.
+2. **Update** the `students` table so the student without an address gets assigned to the new address.
+3. **Insert** a sibling of that same student as a new row in `students` (same last name, different first name).
+4. **Create** a new table `extracurriculars` (e.g. football, journalism, debate team) with `id` and `name`.
+5. **Insert** at least 3 rows into `extracurriculars`.
+6. **Alter** the `students` table to add a new column `extracurricular_id` referencing the `extracurriculars` table.
+7. **Update** the `students` table to assign each student an `extracurricular_id`.
 
-1. Insert an additional address into the address table
-2. Update the student table to assign the student without an address to the new address
-3. Insert a sibling of that same student as an additional student into the student table
-4. Create a new table for extracurriculurs (ex: football, journalism, debate team)
-5. Insert values into the extracurriculurs table
-6. Alter the students table to add a new column referencing the extracurriculurs table
-7. Update the students table to assign each student an extracurriculur_id
+## Things to think about
+- Why use `serial` for primary keys instead of a column you might already have (e.g. social security number, ISBN)?  What's the cost of "natural" keys vs synthetic ones?
+- When should a column be `NOT NULL`?  What's the tradeoff?
+- After step 6, every existing row in `students` has `NULL` in the new column.  How does Postgres handle that — and what would happen if you added the column as `NOT NULL` instead?
+- `DELETE` vs `DROP` — what's the difference and when would you pick each?
+
+## Stretch
+- Add a `CHECK` constraint on `students.birthdate` to reject future dates.
+- Add a `UNIQUE` constraint on `(student_id, class_id)` in `enrollments` so a student can't be enrolled in the same class twice.
+- Add a `grade` column to `enrollments` that's constrained to values in `('A', 'B', 'C', 'D', 'F', 'INC')` — look up Postgres `CHECK` constraints.
+- Write a SELECT that joins all four (now five) tables and prints each student's name, their address city, their classes, and their extracurricular.
+
+> Stuck? Have a code error? Use the ["4 Before Me"](https://docs.google.com/document/d/1nseOs5oabYBKNHfwJZNAR7GlU0zkZxNagsw63AD7XV0/edit) debugging checklist to help you solve it!
