@@ -20,12 +20,12 @@ DROP TABLE IF EXISTS classes;
 CREATE TABLE classes (
   id           serial PRIMARY KEY,
   name         varchar(255) NOT NULL,
-  credits      varchar(2) NOT NULL
+  credits      integer NOT NULL
 );
 DROP TABLE IF EXISTS enrollments;
 CREATE TABLE enrollments (
   id           serial PRIMARY KEY,
   student_id   integer REFERENCES students,
   class_id     integer REFERENCES classes,
-  grade        varchar(2)
+  grade        varchar(3)
 );
