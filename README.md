@@ -2,7 +2,7 @@
 
 In this challenge you'll create a small school database from scratch: write the schema, load seed data, then make a series of modifications.  This exercises SQL's data-definition (`CREATE`, `ALTER`) and data-modification (`INSERT`, `UPDATE`) sides — different from the `SELECT`-heavy queries you've been doing all week.
 
-Starter files: `create-schema.sql`, `seed-data.sql`.
+Starter files: `create-schema.sql`, `seed-data.sql`, plus a `Dockerfile` and `setup.sh` for running Postgres in Docker (same pattern as the other database repos this week).
 
 ## SQL refresher
 
@@ -22,31 +22,32 @@ Every database server supports these core commands.  You'll touch all of them in
 
 | Description | Type |
 |---|---|
-| Integer numbers from -2³¹ to 2³¹ | `INTEGER` |
+| Integer numbers from -2³¹ to 2³¹−1 | `INTEGER` |
 | Fractional number | `DECIMAL` |
 | Variable-length string (1–255 chars) | `VARCHAR(n)` |
 | Fixed-length string | `CHARACTER(n)` |
-| Longer strings, up to 16 KB | `TEXT` |
+| Longer strings, up to ~1 GB | `TEXT` |
 | Date, no time | `DATE` |
 | Date with time | `TIMESTAMP` |
 
 ## Requirements
 
-### 1. Create a database
+### 1. Start the database
 
-Postgres supports multiple databases, so create a fresh one named `school`:
+Postgres supports multiple databases; the included `Dockerfile` creates a fresh, empty one named `school` inside a container called `pg_school`.  Build the image, start the container, and connect in one step:
 
 ```bash
-$ createdb school
+$ sh setup.sh
 ```
 
-Connect with `psql` and list tables — should be empty:
+That drops you into a `psql` session connected to `school`.  List tables — should be empty:
 
-```bash
-$ psql school
+```
 school=# \d
 No relations found.
 ```
+
+Leave this session open — you'll come back to it to inspect your work.  (Done for the day?  `docker stop pg_school` shuts it down; the container runs with `--rm`, so it cleans up after itself.  Everything you build lives in your `.sql` files, so re-running `setup.sh` plus your scripts rebuilds it all.)
 
 ### 2. Write the schema
 
@@ -76,15 +77,17 @@ Notes:
 - Primary keys are `NOT NULL` by default; you don't need to spell it out.
 - Give thought to which other columns make sense as `NOT NULL`.
 
-Load and reload your schema as you go:
+Load and reload your schema as you go.  From the repo directory, in a **second terminal** (leave the `psql` session from `setup.sh` open in the first):
 
 ```bash
-$ psql school < create-schema.sql
+$ docker exec -i pg_school psql -U postgres -d school < create-schema.sql
 ```
+
+Re-run that command after every edit — the script `DROP`s its tables before creating them, so it's safe to run repeatedly.
 
 ### 3. Inspect your schema
 
-After loading, connect with `psql school` and inspect each table with `\d`:
+After loading, switch back to the `psql` session `setup.sh` opened and inspect each table with `\d`:
 
 ```
 school=# \d students
@@ -99,7 +102,7 @@ school=# \d students
 ### 4. Load the seed data
 
 ```bash
-$ psql school < seed-data.sql
+$ docker exec -i pg_school psql -U postgres -d school < seed-data.sql
 ```
 
 You should see a stream of `INSERT 0 1` lines.  If you see errors, your schema probably doesn't match — fix the schema and rerun both files.
@@ -134,7 +137,7 @@ Write each as a SQL script and run it.  You can put them all in a single `modifi
 ## Stretch
 - Add a `CHECK` constraint on `students.birthdate` to reject future dates.
 - Add a `UNIQUE` constraint on `(student_id, class_id)` in `enrollments` so a student can't be enrolled in the same class twice.
-- Add a `grade` column to `enrollments` that's constrained to values in `('A', 'B', 'C', 'D', 'F', 'INC')` — look up Postgres `CHECK` constraints.
+- Constrain the existing `grade` column on `enrollments` to the values `('A', 'B', 'C', 'D', 'F', 'INC')` with a `CHECK` constraint — look up Postgres `CHECK` constraints.
 - Write a SELECT that joins all four (now five) tables and prints each student's name, their address city, their classes, and their extracurricular.
 
 > Stuck? Have a code error? Use the ["4 Before Me"](https://docs.google.com/document/d/1nseOs5oabYBKNHfwJZNAR7GlU0zkZxNagsw63AD7XV0/edit) debugging checklist to help you solve it!
